@@ -19,7 +19,7 @@ library(formattable)
 
 source("clustering_helper_func.R")
 
-raw_data <- read.csv('/Users/pedropereira/Downloads/superstore_dataset2011-2015.csv')
+raw_data <- read.csv('data/superstore_dataset2011-2015.csv')
 data <- kmeans_segmentation(raw_data)
 
 pal <- c("#172636", "#C30621", "#636363")

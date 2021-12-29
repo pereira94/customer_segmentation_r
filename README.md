@@ -1,6 +1,8 @@
 # Customer Segmentation with R & Shiny
 
-Web application for customer segmentation created using R & Shiny; deployed on shinyapps.io. Link to the live app is below. 
+Web application for customer segmentation created using R & Shiny; deployed on shinyapps.io. The live application can be found [here](https://pedro-pereira123.shinyapps.io/customer_segmentation/). 
+
+![alt-text](https://github.com/pereira94/customer_segmentation_r/blob/main/artifacts/app_recording.gif)
 
 ## Business Case 
 

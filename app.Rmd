@@ -1,0 +1,233 @@
+---
+title: "Customer Segementation"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    css: css/styles-default.css
+    logo: img/logo.png
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(DT)
+library(plotly)
+library(lubridate)
+library(tidyverse)
+library(formattable)
+
+source("clustering_helper_func.R")
+
+raw_data <- read.csv('/Users/pedropereira/Downloads/superstore_dataset2011-2015.csv')
+data <- kmeans_segmentation(raw_data)
+
+pal <- c("#172636", "#C30621", "#636363")
+pal <- setNames(pal, c("1", "2", "3"))
+```
+
+Dashboard
+======================================================================
+
+Sidebar {.sidebar}
+---------------------------------------------------------------------
+```{r}
+#inputs 
+
+sliderInput(inputId = "recency", 
+            label   = h4("Days Since Last Purchase Cutoff"), 
+            min     = 1,
+            max     = 365, 
+            value   = 180, 
+            step    = 1, 
+            round   = TRUE)
+
+sliderInput(inputId = "frequency", 
+            label   = h4("Number of Orders Cutoff"), 
+            min     = 1,
+            max     = 50, 
+            value   = 10, 
+            step    = 1, 
+            round   = TRUE)
+
+sliderInput(inputId = "monetary", 
+            label   = h4("Total $ Spent Cutoff"), 
+            min     = 100,
+            max     = 40000, 
+            value   = 1000, 
+            step    = 1, 
+            round   = TRUE)
+
+```
+
+
+```{r}
+#output 
+
+filtered_data <- reactive({
+  
+  data %>% 
+    dplyr::filter(total_sales >= input$monetary) %>% 
+    dplyr::filter(frequency >= input$frequency) %>% 
+    dplyr::filter(recency <= input$recency) %>% 
+    mutate(.cluster = as.factor(.cluster)) 
+})
+```
+
+Column 
+-----------------------------------------------------------------------
+
+### Clusters Visualization 
+
+```{r}
+#Reactive 
+renderPlotly({ 
+  filtered_data() %>%
+    dplyr::rename(`Days Since Last Order` = recency,
+                  `Total Number of Orders` = frequency,
+                  `Total Sales` = total_sales) %>%
+    dplyr::mutate(tooltip = paste("Customer ID:", Customer.ID, 
+                                  "\n",
+                                  "Days Since Last Order:", `Days Since Last Order`, 
+                                  "\n",
+                                  "Total Sales:", scales::dollar(round(`Total Sales`)), "
+                                  \n")) %>% 
+    plot_ly(x = ~`Days Since Last Order`, y = ~`Total Number of Orders`, z = ~`Total Sales`, 
+            color = ~.cluster, colors = pal, hoverinfo = "text", text = ~tooltip)
+  })
+```
+
+Clusters Summary
+======================================================================
+
+Column 
+-----------------------------------------------------------------------
+
+### Clusters Summary
+
+```{r}
+renderTable({
+  
+  filtered_data() %>% 
+    dplyr::group_by(.cluster) %>% 
+    dplyr::summarise(
+      Avg_total_spend = scales::dollar(round(median(total_sales))), 
+      Avg_days_since_last_order = as.integer(round(median(recency))), 
+      Avg_number_of_orders = as.integer(round(median(frequency)))
+    ) %>% 
+    dplyr::select(.cluster, Avg_total_spend, Avg_days_since_last_order, 
+                  Avg_number_of_orders) %>%
+    rename(Cluster = .cluster) %>% 
+    formattable::formattable()
+  
+})
+```
+
+### Number of Customers per Cluster 
+
+```{r}
+renderPlotly({
+  filtered_data() %>% 
+    group_by(.cluster) %>% 
+    summarise(customers = n()) %>% 
+    plot_ly(x = ~reorder(.cluster,customers), y = ~customers, marker = list(color = "#172636"),
+            type = "bar", text = ~customers, textposition = "auto") %>% 
+    layout(xaxis = list(title = "Cluster"),
+           yaxis = list(title ="Customers"))
+})
+```
+
+Column 
+-----------------------------------------------------------------------
+
+### Total Sales by Cluster
+```{r}
+renderPlotly({
+  filtered_data() %>% 
+    plot_ly(x = ~reorder(.cluster,total_sales), y = ~total_sales, 
+            color = ~.cluster, colors = pal, type = "box") %>% 
+    layout(xaxis = list(title = "Cluster"),
+           yaxis = list(title ="Total Sales"))
+})
+```
+
+### Total Orders by Cluster
+```{r}
+renderPlotly({
+  filtered_data() %>% 
+    plot_ly(x = ~reorder(.cluster,frequency), y = ~frequency, 
+            color = ~.cluster, colors = pal, type = "box") %>% 
+    layout(xaxis = list(title = "Cluster"),
+           yaxis = list(title ="Total Orders"))
+})
+```
+
+### Days Since Last Order by Cluster
+```{r}
+renderPlotly({
+  filtered_data() %>% 
+    plot_ly(x = ~reorder(.cluster,recency), y = ~recency, 
+            color = ~.cluster, colors = pal, type = "box") %>% 
+    layout(xaxis = list(title = "Cluster"),
+           yaxis = list(title ="Days Since Last Order"))
+})
+```
+
+Clusters Data Export
+======================================================================
+
+Sidebar {.sidebar}
+---------------------------------------------------------------------
+
+```{r}
+checkboxGroupInput(inputId = "cluster_filter", 
+                   label   = h4("Select Clusters to Export"), 
+                   choices = c("Cluster 1" = "1",
+                               "Cluster 2" = "2",
+                               "Cluster 3" = "3"), 
+                   selected = c("1", "2", "3"))
+```
+
+```{r}
+export_data <- reactive({
+  filtered_data() %>% 
+    dplyr::filter(.cluster %in% input$cluster_filter)
+})
+```
+
+
+```{r}
+# Create placeholder for the downloadButton
+uiOutput("downloadUI")
+```
+
+```{r}
+output$downloadUI <- renderUI( {
+  downloadButton("downBtn", "Download Cluster Data", style = "width:100%;")
+})
+
+output$downBtn <- downloadHandler(
+  filename = function() {
+    "cluster_data.csv"
+  },
+  content = function(file) {
+    export_data() %>% write.csv(file, row.names = FALSE)
+  }
+)
+```
+
+Column 
+-----------------------------------------------------------------------
+
+### Data Sample
+```{r}
+output$dt_output_1 <- DT::renderDataTable(expr = {
+  
+  export_data()
+  
+}, options = list(scrollY = "250px"))
+
+DTOutput(outputId = "dt_output_1")
+```
+
+

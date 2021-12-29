@@ -1,0 +1,37 @@
+/*Importing fonts*/
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=Roboto&display=swap');
+
+/*Navbar font */
+.navbar-brand {
+  font-family: "Montserrat", Sans-Serif;
+}
+
+
+/*Header font*/
+h1,h2,h3,h4,h5,h6, .h1,.h2,.h3,.h4,.h5,.h6 {
+  font-family: "Montserrat", Sans-Serif;
+  color: #172636;
+}
+
+/*Body font*/
+body {
+  font-family: "Roboto", Sans-Serif;
+  color: #172636;
+}
+
+/*Navbar color*/
+.navbar-inverse {
+    background-color: #172636;
+    border-color: #fff
+}
+
+/*Navbar logo */
+.navbar-logo {
+  width: 50px
+}
+
+/*Sidebar color*/
+.section.sidebar {
+    top: 51px;
+    background-color: #f8fbf91a;
+}
